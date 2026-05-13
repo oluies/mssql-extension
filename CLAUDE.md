@@ -274,7 +274,7 @@ POSIX Kerberos and Windows SSPI integrated authentication, shipped via spec 042.
 **Implementation files:**
 - `src/include/tds/auth/iauthenticator.hpp` — three-method interface (`InitialBytes` / `NextBytes` / `Free`), modeled on `microsoft/go-mssqldb`'s `integratedauth.IntegratedAuthenticator`
 - `src/tds/auth/krb5_authenticator.{hpp,cpp}` — GSSAPI implementation (POSIX, compiled when `MSSQL_ENABLE_KRB5` is defined)
-- `src/tds/auth/winsspi_authenticator.{hpp,cpp}` — Windows SSPI implementation (Phase 4, not yet present)
+- `src/tds/auth/winsspi_authenticator.{hpp,cpp}` — Windows SSPI implementation via `secur32.dll` Negotiate package (compiled when `MSSQL_ENABLE_SSPI` is defined; CMake auto-enables on `_WIN32`)
 - `src/include/tds/auth/integrated_auth_strategy.hpp` — adapter wrapping `IAuthenticator` in the existing `AuthenticationStrategy` interface
 - `src/tds/auth/auth_strategy_factory.cpp` — `AuthStrategyFactory::Create` dispatches `KRB5` / `WINSSPI` based on `info.auth_method`
 - `src/tds/tds_connection.cpp` `AuthenticateIntegrated()` — SPNEGO continuation loop on `0xED` SSPI tokens
@@ -299,7 +299,7 @@ The test KDC's realm is `EXAMPLE.COM`, principal is `testuser@EXAMPLE.COM` (pass
 |---|---|---|---|---|
 | Linux x86_64 / ARM64 | yes | yes | yes (secret only) | Phase 3 shipped |
 | macOS ARM64 | yes | rejected at construction | rejected at construction | Phase 3 shipped |
-| Windows x64 | n/a | n/a | n/a | Phase 4 pending |
+| Windows x64 | yes (logon session) | n/a | n/a | Phase 4 shipped |
 
 **Connection-string surface (verbatim from `microsoft/go-mssqldb`):**
 
@@ -346,7 +346,8 @@ target_compile_features(${EXTENSION_NAME} PRIVATE cxx_std_17)
 **Note:** This issue only manifests on GCC/Linux, not on Clang/macOS, because Clang is more lenient with ODR for constexpr static members.
 
 ## Recent Changes
-- 042-integrated-authentication: Added Kerberos (POSIX) integrated authentication via system GSSAPI. SPNEGO + LOGIN7 `fIntSecurity` bit + 0xED SSPI continuation tokens. Self-contained test stack at `test/kerberos/`. Phase 4 (Windows SSPI) deferred.
+- 042-integrated-authentication Phase 4: Added Windows SSPI authentication via `secur32.dll`'s Negotiate package. `WinSspiAuthenticator` peer of `Krb5Authenticator`. Same `IAuthenticator` interface; shared SPNEGO continuation loop in `TdsConnection::AuthenticateIntegrated`.
+- 042-integrated-authentication: Added Kerberos (POSIX) integrated authentication via system GSSAPI. SPNEGO + LOGIN7 `fIntSecurity` bit + 0xED SSPI continuation tokens. Self-contained test stack at `test/kerberos/`.
 - 041-xml-type-support: Added C++17 (C++11-compatible for ODR on Linux) + DuckDB (main branch), OpenSSL (vcpkg), existing TDS protocol layer
 - 040-fix-datetimeoffset-nbc: Added C++17 (C++11-compatible for ODR on Linux) + DuckDB (main branch), OpenSSL (vcpkg), custom TDS protocol layer
 - 039-order-pushdown: Added C++17 (C++11-compatible for ODR on Linux) + DuckDB (main branch), OpenSSL (vcpkg), existing TDS protocol layer
